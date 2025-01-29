@@ -35,3 +35,9 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+
+.node-token
+.terraform.lock.hcl
+local.tfplan
+local.tfstate
+local.tfstate.backup
