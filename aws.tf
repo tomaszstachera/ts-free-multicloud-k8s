@@ -57,8 +57,38 @@ resource "aws_instance" "k3s_master" {
               EOF
 }
 
-resource "null_resource" "k3s_token" {
+resource "null_resource" "aws_wait_for_status" {
   depends_on = [aws_instance.k3s_master]
+  provisioner "local-exec" {
+    command = <<EOT
+      while true; do
+        # Fetch both InstanceStatus and SystemStatus
+        instance_status=$(aws ec2 describe-instance-status --instance-id ${aws_instance.k3s_master.id} --query 'InstanceStatuses[0].InstanceStatus.Status' --output text --profile free)
+        system_status=$(aws ec2 describe-instance-status --instance-id ${aws_instance.k3s_master.id} --query 'InstanceStatuses[0].SystemStatus.Status' --output text --profile free)
+
+        # Check if both statuses are 'ok'
+        if [ "$instance_status" == "ok" ] && [ "$system_status" == "ok" ]; then
+          echo "Both status checks passed: InstanceStatus=$instance_status, SystemStatus=$system_status"
+          break
+        fi
+
+        echo "Waiting for both status checks to pass: InstanceStatus=$instance_status, SystemStatus=$system_status"
+        sleep 10
+      done
+    EOT
+  }
+}
+
+resource "null_resource" "aws_user_data_logs" {
+  depends_on = [aws_instance.k3s_master, null_resource.aws_wait_for_status]
+  provisioner "local-exec" {
+    when    = create
+    command = "ssh -o StrictHostKeychecking=no -i ${local_file.k3s_master_key.filename} ubuntu@${aws_instance.k3s_master.public_ip} \"cat /var/log/cloud-init-output.log\""
+  }
+}
+
+resource "null_resource" "k3s_token" {
+  depends_on = [aws_instance.k3s_master, null_resource.aws_wait_for_status]
   provisioner "local-exec" {
     when    = create
     command = "ssh -o StrictHostKeychecking=no -i ${local_file.k3s_master_key.filename} ubuntu@${aws_instance.k3s_master.public_ip} \"sudo cat /var/lib/rancher/k3s/server/node-token\" > .node-token"
@@ -73,9 +103,9 @@ data "local_file" "k3s_token" {
 
 ## Output KUBECONFIG
 resource "null_resource" "kubeconfig" {
-  depends_on = [aws_instance.k3s_master]
+  depends_on = [aws_instance.k3s_master, null_resource.k3s_token]
   provisioner "local-exec" {
     when    = create
-    command = "ssh -o StrictHostKeychecking=no -i ${local_file.k3s_master_key.filename}@${aws_instance.k3s_master.public_ip} \"sudo cat /etc/rancher/k3s/k3s.yaml\" | sed 's/127.0.0.1/${aws_instance.k3s_master.public_ip}/g' > ~/.kube/multicloud-free"
+    command = "ssh -o StrictHostKeychecking=no -i ${local_file.k3s_master_key.filename} ubuntu@${aws_instance.k3s_master.public_ip} \"sudo cat /etc/rancher/k3s/k3s.yaml\" | sed 's/127.0.0.1/${aws_instance.k3s_master.public_ip}/g' > ~/.kube/multicloud-free"
   }
 }

@@ -41,3 +41,4 @@ terraform.rc
 local.tfplan
 local.tfstate
 local.tfstate.backup
+.ssh
