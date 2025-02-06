@@ -53,7 +53,7 @@ resource "aws_instance" "k3s_master" {
 
   user_data = <<-EOF
               #!/bin/bash
-              curl -sfL https://get.k3s.io | sh -s - --node-external-ip $(curl -sSL https://ipconfig.sh) --debug --write-kubeconfig-mode=644
+              curl -sfL https://get.k3s.io | sh -s - --node-external-ip $(curl -sSL https://ipconfig.sh) --flannel-backend=wireguard-native --flannel-external-ip --debug --write-kubeconfig-mode=644
               EOF
 }
 
@@ -109,3 +109,20 @@ resource "null_resource" "kubeconfig" {
     command = "ssh -o StrictHostKeychecking=no -i ${local_file.k3s_master_key.filename} ubuntu@${aws_instance.k3s_master.public_ip} \"sudo cat /etc/rancher/k3s/k3s.yaml\" | sed 's/127.0.0.1/${aws_instance.k3s_master.public_ip}/g' > ~/.kube/multicloud-free"
   }
 }
+
+#data "external" "control_plane_ip" {
+#  program = ["KUBECONFIG=$HOME/.kube/multicloud-free kubectl get nodes -l node-role.kubernetes.io/control-plane=true -o jsonpath='{.items[0].status.addresses[?(@.type==\"InternalIP\")].address}'"]
+#}
+#
+#output "control_plane_ip" {
+#  value = data.external.control_plane_ip.result["internal_ip"]
+#}
+#
+#
+#resource "aws_vpc_security_group_ingress_rule" "k3s_master_sg_ingress_prv_ip" {
+#  security_group_id = aws_security_group.k3s_master_sg.id
+#  from_port         = 6443
+#  to_port           = 6443
+#  ip_protocol       = "tcp"
+#  cidr_ipv4         = var.local_public_ip
+#}

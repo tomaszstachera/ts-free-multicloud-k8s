@@ -83,10 +83,10 @@ resource "null_resource" "gcp_wait_for_status" {
 #}
 
 resource "null_resource" "gcp_startup_script" {
-  depends_on = [null_resource.gcp_wait_for_status]
+  depends_on = [null_resource.gcp_wait_for_status, null_resource.aws_user_data_logs]
   provisioner "local-exec" {
     when    = create
-    command = "ssh -o StrictHostKeychecking=no -i ${local_file.k3s_worker_gcp_key.filename} ubuntu@${google_compute_instance.k3s_worker_gcp.network_interface[0].access_config[0].nat_ip} \"curl -sfL https://get.k3s.io | K3S_URL=https://${aws_instance.k3s_master.public_ip}:6443 K3S_TOKEN=${chomp(data.local_file.k3s_token.content)} sh -s - --debug\""
+    command = "ssh -o StrictHostKeychecking=no -i ${local_file.k3s_worker_gcp_key.filename} ubuntu@${google_compute_instance.k3s_worker_gcp.network_interface[0].access_config[0].nat_ip} \"curl -sfL https://get.k3s.io | K3S_URL=https://${aws_instance.k3s_master.public_ip}:6443 K3S_TOKEN=${chomp(data.local_file.k3s_token.content)} sh -s - --debug --node-external-ip `curl -sSL https://ipconfig.sh`\""
   }
 }
 

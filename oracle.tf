@@ -58,7 +58,7 @@ resource "oci_core_instance" "k3s_worker_oracle" {
     #                          curl -sfL https://get.k3s.io | K3S_URL=https://123.123.123.123:6443 K3S_TOKEN=123 sh -s - --debug
     #                          EOF
     #)
-    user_data = base64encode("curl -sfL https://get.k3s.io | K3S_URL=https://${aws_instance.k3s_master.public_ip}:6443 K3S_TOKEN=${data.local_file.k3s_token.content} sh -s - --debug")
+    user_data = base64encode("curl -sfL https://get.k3s.io | K3S_URL=https://${aws_instance.k3s_master.public_ip}:6443 K3S_TOKEN=${data.local_file.k3s_token.content} sh -s - --debug --node-external-ip `curl -sSL https://ipconfig.sh`")
   }
 }
 
@@ -68,8 +68,7 @@ resource "null_resource" "oci_wait_for_status" {
     command = <<EOT
       while true; do
         # Get the instance status from OCI
-        instance_status=$(oci compute instance get --compartment-id ${var.oci_tenancy_ocid} --instance-id ${oci_core_instance.k3s_worker_oracle.id} \
-          --query "data.lifecycleState" --output text)
+        instance_status=$(oci compute instance get --instance-id ${oci_core_instance.k3s_worker_oracle.id} --query data | jq -r '."lifecycle-state"')
 
         # Check if the status is 'RUNNING'
         if [ "$instance_status" == "RUNNING" ]; then
@@ -85,7 +84,7 @@ resource "null_resource" "oci_wait_for_status" {
 }
 
 resource "null_resource" "oci_startup_script" {
-  depends_on = [null_resource.aws_user_data_logs, null_resource.gcp_user_data_logs, oci_core_instance.k3s_worker_oracle, null_resource.oci_wait_for_status]
+  depends_on = [null_resource.aws_user_data_logs, oci_core_instance.k3s_worker_oracle, null_resource.oci_wait_for_status]
   provisioner "local-exec" {
     when    = create
     command = "ssh -o StrictHostKeychecking=no -i ${local_file.k3s_worker_oracle_key.filename} ubuntu@${oci_core_instance.k3s_worker_oracle.public_ip} \"sudo cat /var/log/cloud-init-output.log\""
