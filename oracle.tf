@@ -83,12 +83,20 @@ resource "null_resource" "oci_wait_for_status" {
   }
 }
 
-resource "null_resource" "oci_startup_script" {
+resource "null_resource" "oci_startup_script_logs" {
   depends_on = [null_resource.aws_user_data_logs, oci_core_instance.k3s_worker_oracle, null_resource.oci_wait_for_status]
   provisioner "local-exec" {
     when    = create
     command = "ssh -o StrictHostKeychecking=no -i ${local_file.k3s_worker_oracle_key.filename} ubuntu@${oci_core_instance.k3s_worker_oracle.public_ip} \"sudo cat /var/log/cloud-init-output.log\""
     #command = "ssh -o StrictHostKeychecking=no -i ${local_file.k3s_master_key.filename} ubuntu@${aws_instance.k3s_master.public_ip} \"curl -sfL https://get.k3s.io | K3S_URL=https://${aws_instance.k3s_master.public_ip}:6443 K3S_TOKEN=${data.local_file.k3s_token.content} sh -s - --debug | tee /home/ubuntu/init.log\""
+  }
+}
+
+resource "null_resource" "oci_startup_script_" {
+  depends_on = [null_resource.oci_startup_script_logs]
+  provisioner "local-exec" {
+    when    = create
+    command = "ssh -o StrictHostKeychecking=no -i ${local_file.k3s_worker_oracle_key.filename} ubuntu@${oci_core_instance.k3s_worker_oracle.public_ip} \"curl -sfL https://get.k3s.io | K3S_URL=https://${aws_instance.k3s_master.public_ip}:6443 K3S_TOKEN=${chomp(data.local_file.k3s_token.content)} sh -s - --debug --node-external-ip `curl -sSL https://ipconfig.sh`\""
   }
 }
 
