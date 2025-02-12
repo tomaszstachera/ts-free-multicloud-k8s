@@ -23,12 +23,18 @@ resource "oci_core_security_list" "k3s_worker_oracle_security_list" {
   vcn_id         = var.oci_vcn_id
 
   ingress_security_rules {
-    protocol = "6"
-    source   = var.local_public_ip
-    tcp_options {
-      min = 22
-      max = 22
-    }
+    protocol = "all"
+    #source   = var.local_public_ip
+    source = "0.0.0.0/0"
+    #tcp_options {
+    #  min = 22
+    #  max = 22
+    #}
+  }
+
+  egress_security_rules {
+    protocol    = "all"
+    destination = "0.0.0.0/0"
   }
 }
 
@@ -88,23 +94,22 @@ resource "null_resource" "oci_startup_script_logs" {
   provisioner "local-exec" {
     when    = create
     command = "ssh -o StrictHostKeychecking=no -i ${local_file.k3s_worker_oracle_key.filename} ubuntu@${oci_core_instance.k3s_worker_oracle.public_ip} \"sudo cat /var/log/cloud-init-output.log\""
-    #command = "ssh -o StrictHostKeychecking=no -i ${local_file.k3s_master_key.filename} ubuntu@${aws_instance.k3s_master.public_ip} \"curl -sfL https://get.k3s.io | K3S_URL=https://${aws_instance.k3s_master.public_ip}:6443 K3S_TOKEN=${data.local_file.k3s_token.content} sh -s - --debug | tee /home/ubuntu/init.log\""
   }
 }
 
-resource "null_resource" "oci_startup_script_" {
+resource "null_resource" "oci_bootstrap_node" {
   depends_on = [null_resource.oci_startup_script_logs]
   provisioner "local-exec" {
     when    = create
-    command = "ssh -o StrictHostKeychecking=no -i ${local_file.k3s_worker_oracle_key.filename} ubuntu@${oci_core_instance.k3s_worker_oracle.public_ip} \"curl -sfL https://get.k3s.io | K3S_URL=https://${aws_instance.k3s_master.public_ip}:6443 K3S_TOKEN=${chomp(data.local_file.k3s_token.content)} sh -s - --debug --node-external-ip `curl -sSL https://ipconfig.sh`\""
+    command = "ssh -o StrictHostKeychecking=no -i ${local_file.k3s_worker_oracle_key.filename} ubuntu@${oci_core_instance.k3s_worker_oracle.public_ip} \"curl -sfL https://get.k3s.io | K3S_URL=https://${aws_instance.k3s_master.public_ip}:6443 K3S_TOKEN=${chomp(data.local_file.k3s_token.content)} sh -s - --debug --node-external-ip ${oci_core_instance.k3s_worker_oracle.public_ip}\""
   }
 }
 
 
-resource "aws_vpc_security_group_ingress_rule" "k3s_master_sg_ingress_4" {
-  security_group_id = aws_security_group.k3s_master_sg.id
-  from_port         = 6443
-  to_port           = 6443
-  ip_protocol       = "tcp"
-  cidr_ipv4         = "${oci_core_instance.k3s_worker_oracle.public_ip}/32"
-}
+#resource "aws_vpc_security_group_ingress_rule" "k3s_master_sg_ingress_4" {
+#  security_group_id = aws_security_group.k3s_master_sg.id
+#  from_port         = 6443
+#  to_port           = 6443
+#  ip_protocol       = "tcp"
+#  cidr_ipv4         = "${oci_core_instance.k3s_worker_oracle.public_ip}/32"
+#}

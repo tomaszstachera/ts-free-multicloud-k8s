@@ -19,20 +19,22 @@ resource "aws_security_group" "k3s_master_sg" {
   name_prefix = "k3s-master-sg-"
 }
 
-resource "aws_vpc_security_group_ingress_rule" "k3s_master_sg_ingress_1" {
-  security_group_id = aws_security_group.k3s_master_sg.id
-  from_port         = 22
-  to_port           = 22
-  ip_protocol       = "tcp"
-  cidr_ipv4         = var.local_public_ip
-}
+#resource "aws_vpc_security_group_ingress_rule" "k3s_master_sg_ingress_1" {
+#  security_group_id = aws_security_group.k3s_master_sg.id
+#  from_port         = 22
+#  to_port           = 22
+#  ip_protocol       = "tcp"
+#  cidr_ipv4         = var.local_public_ip
+#}
 
 resource "aws_vpc_security_group_ingress_rule" "k3s_master_sg_ingress_2" {
   security_group_id = aws_security_group.k3s_master_sg.id
-  from_port         = 6443
-  to_port           = 6443
-  ip_protocol       = "tcp"
-  cidr_ipv4         = var.local_public_ip
+  #from_port         = 6443
+  #to_port           = 6443
+  #ip_protocol       = "tcp"
+  #cidr_ipv4         = var.local_public_ip
+  ip_protocol = "-1"
+  cidr_ipv4   = "0.0.0.0/0"
 }
 
 resource "aws_vpc_security_group_egress_rule" "k3s_master_sg_egress_1" {
@@ -110,15 +112,15 @@ resource "null_resource" "kubeconfig" {
   }
 }
 
-#data "external" "control_plane_ip" {
-#  program = ["KUBECONFIG=$HOME/.kube/multicloud-free kubectl get nodes -l node-role.kubernetes.io/control-plane=true -o jsonpath='{.items[0].status.addresses[?(@.type==\"InternalIP\")].address}'"]
-#}
-#
-#output "control_plane_ip" {
-#  value = data.external.control_plane_ip.result["internal_ip"]
-#}
-#
-#
+## Output Nodes
+resource "null_resource" "nodes" {
+  depends_on = [null_resource.kubeconfig, null_resource.gcp_bootstrap_node, null_resource.oci_bootstrap_node]
+  provisioner "local-exec" {
+    when    = create
+    command = "KUBECONFIG=$HOME/.kube/multicloud-free kubectl get nodes -o wide"
+  }
+}
+
 #resource "aws_vpc_security_group_ingress_rule" "k3s_master_sg_ingress_prv_ip" {
 #  security_group_id = aws_security_group.k3s_master_sg.id
 #  from_port         = 6443

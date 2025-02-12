@@ -16,10 +16,11 @@ resource "google_compute_firewall" "k3s_worker_gcp_firewall" {
 
   allow {
     protocol = "tcp"
-    ports    = ["22"]
+    #ports    = ["22"]
   }
 
-  source_ranges = [var.local_public_ip]
+  #source_ranges = [var.local_public_ip]
+  source_ranges = ["0.0.0.0/0"]
 }
 
 resource "google_compute_instance" "k3s_worker_gcp" {
@@ -74,27 +75,27 @@ resource "null_resource" "gcp_wait_for_status" {
 }
 
 # I wasn't able to make GPP startup script to work
-#resource "null_resource" "gcp_user_data_logs" {
-#  depends_on = [null_resource.aws_user_data_logs, null_resource.gcp_wait_for_status]
-#  provisioner "local-exec" {
-#    when    = create
-#    command = "ssh -o StrictHostKeychecking=no -i ${local_file.k3s_worker_gcp_key.filename} ubuntu@${google_compute_instance.k3s_worker_gcp.network_interface[0].access_config[0].nat_ip} \"sudo journalctl -u google-startup-scripts.service\""
-#  }
-#}
+resource "null_resource" "gcp_user_data_logs" {
+  depends_on = [null_resource.aws_user_data_logs, null_resource.gcp_wait_for_status]
+  provisioner "local-exec" {
+    when    = create
+    command = "ssh -o StrictHostKeychecking=no -i ${local_file.k3s_worker_gcp_key.filename} ubuntu@${google_compute_instance.k3s_worker_gcp.network_interface[0].access_config[0].nat_ip} \"sudo journalctl -u google-startup-scripts.service\""
+  }
+}
 
-resource "null_resource" "gcp_startup_script" {
+resource "null_resource" "gcp_bootstrap_node" {
   depends_on = [null_resource.gcp_wait_for_status, null_resource.aws_user_data_logs]
   provisioner "local-exec" {
     when    = create
-    command = "ssh -o StrictHostKeychecking=no -i ${local_file.k3s_worker_gcp_key.filename} ubuntu@${google_compute_instance.k3s_worker_gcp.network_interface[0].access_config[0].nat_ip} \"curl -sfL https://get.k3s.io | K3S_URL=https://${aws_instance.k3s_master.public_ip}:6443 K3S_TOKEN=${chomp(data.local_file.k3s_token.content)} sh -s - --debug --node-external-ip `curl -sSL https://ipconfig.sh`\""
+    command = "ssh -o StrictHostKeychecking=no -i ${local_file.k3s_worker_gcp_key.filename} ubuntu@${google_compute_instance.k3s_worker_gcp.network_interface[0].access_config[0].nat_ip} \"curl -sfL https://get.k3s.io | K3S_URL=https://${aws_instance.k3s_master.public_ip}:6443 K3S_TOKEN=${chomp(data.local_file.k3s_token.content)} sh -s - --debug --node-external-ip ${google_compute_instance.k3s_worker_gcp.network_interface[0].access_config[0].nat_ip}\""
   }
 }
 
 
-resource "aws_vpc_security_group_ingress_rule" "k3s_master_sg_ingress_3" {
-  security_group_id = aws_security_group.k3s_master_sg.id
-  from_port         = 6443
-  to_port           = 6443
-  ip_protocol       = "tcp"
-  cidr_ipv4         = "${google_compute_instance.k3s_worker_gcp.network_interface[0].access_config[0].nat_ip}/32"
-}
+#resource "aws_vpc_security_group_ingress_rule" "k3s_master_sg_ingress_3" {
+#  security_group_id = aws_security_group.k3s_master_sg.id
+#  from_port         = 6443
+#  to_port           = 6443
+#  ip_protocol       = "tcp"
+#  cidr_ipv4         = "${google_compute_instance.k3s_worker_gcp.network_interface[0].access_config[0].nat_ip}/32"
+#}
