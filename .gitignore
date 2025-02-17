@@ -42,3 +42,4 @@ local.tfplan
 local.tfstate
 local.tfstate.backup
 .ssh
+.DS_Store

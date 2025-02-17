@@ -1,12 +1,12 @@
 # Free fully automated multicloud multiarchitecture Kubernetes cluster (with DeepSeekAI evaluation)
 
-This is our plan for this excercise:
+This is our plan for this exercise:
 
 - Build a Kubernetes cluster consisting of:
   - A master node on AWS EC2 ARM instance
   - Worker nodes on GCP and OCI (Oracle Cloud Infrastructure) x86/64 VMs
 - Use only free tier cloud resources and fully automate everything in a one-click Terraform deployment
-- Ask DeepSeekAI to generate the entire code, identify it's mistakes and fix them
+- Ask DeepSeekAI to generate the entire code, identify its mistakes and fix them
 
 Why are we doing this? Because we can :) Let's get started.
 
@@ -23,7 +23,7 @@ Why are we doing this? Because we can :) Let's get started.
 - Terraform version v1.4.5 (for example using [tfenv](https://github.com/tfutils/tfenv) )
 - kubectl [installed](https://kubernetes.io/docs/tasks/tools/)
 
-## The only code that will perform this excercise:
+## The only code that will perform this exercise:
 
 ```bash
 terraform init
@@ -37,9 +37,9 @@ terraform destroy -var local_public_ip="$(curl -sSL https://ipconfig.sh)/32"
 
 ## Which components to choose?
 
-For the K8s cluster we will use [K3s](https://k3s.io/), because it is lightweight and (hopefully :)) will fit into Free Tier VMs. Regarding cloud providers, the obvious choice is to use the biggest ones (widest availability, battle-tested solutions). This was originally my choice (to use AWS, GCP and Azure), but apparently Microsoft doesn't want to cooperate with me and I wasn't able to start a free tier account because of below isssue:
+For the K8s cluster we will use [K3s](https://k3s.io/), because it is lightweight and (hopefully :)) will fit into Free Tier VMs. Regarding cloud providers, the obvious choice is to use the biggest ones (widest availability, battle-tested solutions). This was originally my choice (to use AWS, GCP and Azure), but apparently Microsoft doesn't want to cooperate with me and I wasn't able to start a free tier account because of below issue:
 ![Azure issue](img/azure-issue.png "Azure issue")
-I wasn't able to start Azure Free Tier because of phone validation issue. I've tried all the optins there, diferent numbers, but no luck. I've tried to contact their support and somebody from Microsoft called me back and asked me to mail him with the details :) It was hilarious, because this support member **spelled out his email address to me over the phone** - pure magic :) So I dropped Azure and decided to use Oracle Cloud Infrastructure (OCI) instead since they boast about offering [free 4 vCPU and 24 GM RAM ARM instances](https://www.oracle.com/cloud/free/). Of course reality is far from marketing claims  - it's practically impossible to provision these, because [capacity is almost always full](https://www.reddit.com/r/oraclecloud/comments/1fzvuny/best_oracle_cloud_region_for_free_tier_resources/). I was never able to run this 4 vCPU. Fortunately there is also a regular 1 OCPU VM, so we will use it.
+I wasn't able to start Azure Free Tier because of phone validation issue. I've tried all the options there, different numbers, but no luck. I've tried to contact their support and somebody from Microsoft called me back and asked me to mail him with the details :) It was hilarious, because this support member **spelled out his email address to me over the phone** - pure magic :) So I dropped Azure and decided to use Oracle Cloud Infrastructure (OCI) instead since they boast about offering [free 4 vCPU and 24 GM RAM ARM instances](https://www.oracle.com/cloud/free/). Of course reality is far from marketing claims  - it's practically impossible to provision these, because [capacity is almost always full](https://www.reddit.com/r/oraclecloud/comments/1fzvuny/best_oracle_cloud_region_for_free_tier_resources/). I was never able to run this 4 vCPU. Fortunately there is also a regular 1 OCPU VM, so we will use it.
 
 ## Manual tests
 
@@ -57,7 +57,7 @@ It turned out that this is sufficient and cluster bootstrapped successfully with
 
 ![Worked with Graviton2](img/worked-manually.png "Worked with Graviton2")
 
-Checking `htop` showed that the master node could handle the load with ~ 80% cpu consumed (at the begining):
+Checking `htop` showed that the master node could handle the load with ~ 80% CPU consumed (at the beginning):
 
 ![htop - manual](img/htop.png "htop - manual")
 
@@ -65,7 +65,7 @@ This is how CPU metrics looked like after ~ 15 hours of cluster running:
 
 ![Manual 24hrs](img/working-arm-24hrs.png "Manual 24hrs")
 
-OK, we proved it is doable, so lest's automate the whole process.
+OK, we proved it is doable, so let's automate the whole process.
 
 ## Code preparation
 
@@ -75,7 +75,7 @@ DeepSeekAI is trending recently, so let's test if it can replace DevOps engineer
 
 This is the exact prompt that I've used (I'm not a Prompt Engineering PhD, so I only spent a few minutes refining it ;) ):
 
-> Generate Terraform code that will provision three cloud infrastructures as below. All cloud-specifig configuration obtain from environment variables. Use default boot disks.
+> Generate Terraform code that will provision three cloud infrastructures as below. All cloud-specific configuration obtain from environment variables. Use default boot disks.
 >
 > First setup for AWS:
 > - instance of type t4g.small in region eu-central-1 with public IP and name prefixed with "k3s-master-aws" and AMI ID ami-000b4fe7b39432646
@@ -100,11 +100,11 @@ This is the exact prompt that I've used (I'm not a Prompt Engineering PhD, so I 
 
 The original DeepSeekAI-generated code can be found [here](./original-deepseek-infra/). It contained many errors, some detected by my Neovim LSP and others discovered during `plan` or `apply`. Let's take a look at them.
 
-- here my Neovim LSP is *smarter* than LLM, because it shows that user_data cannot be passed here, but must be a part of `metadata` section for OCI
+- Here my Neovim LSP is *smarter* than LLM, because it shows that user_data cannot be passed here, but must be a part of `metadata` section for OCI
 
-![NVIM - OCI user_data](img/nvim-user-data.png "NVIM - OCI user_data") # not works should be under metadata for OCI
+![NVIM - OCI user_data](img/nvim-user-data.png "NVIM - OCI user_data")
 
-- in general LSP suggested a lot of useful improvements not added by DeepSeekAI
+- In general, LSP suggested a lot of useful improvements not added by DeepSeekAI
   - versioning of Providers and TF version
   - variable types
   - others
@@ -163,7 +163,7 @@ OK, let's move on and we hit 400 - is the request really not formatted properly?
 ![OCI - 400](img/400.png "OCI - 400")
 Of course not - this is Oracle Cloud Infrastructure. Here if it says *malformed request* it really means **you have used Availability Domain OCID, but you should use the name** (SIC! again).
 
-By the way if you look at the [OCI resource example in Terraform docs](https://registry.terraform.io/providers/oracle/oci/latest/docs/resources/core_instance) it doesn't contain **any** real values - sample alwas use variables which doesn't have values specified there.
+By the way, if you look at the [OCI resource example in Terraform docs](https://registry.terraform.io/providers/oracle/oci/latest/docs/resources/core_instance) it doesn't contain **any** real values - sample always use variables which don't have values specified there.
 
 We are moving on, now we hit again 404:
 
@@ -189,7 +189,7 @@ Finally, we reach the last OCI error - 500. Of course they are out of capacity. 
 
 ![OCI - 500](img/oci-500.png "OCI - 500")
 
-I've deployed simple [NGINX](./nginx-deployment.yaml) and exposed it via [Load Balancer](./nginx-svc.yaml). I've spinned up another free AWS instance from which I will test the load. For a start I've triggered two `curl` commands in the backgroud to send few requests per second to the master and worker webservers exposed on NodePorts. Below you can see that all requests passed - not bad for a free cluster.
+I've deployed simple [NGINX](./nginx-deployment.yaml) and exposed it via [Load Balancer](./nginx-svc.yaml). I've spined up another free AWS instance from which I will test the load. For a start I've triggered two `curl` commands in the background to send few requests per second to the master and worker webservers exposed on NodePorts. Below you can see that all requests passed - not bad for a free cluster.
 
 ![2 NGINX simple test](img/2-nginx-results.png "2 NGINX simple test")
 
@@ -203,7 +203,7 @@ But results are strange - all the load was absorbed by master node. Hmmm ... eit
 ![ab tests 2](img/ab-2-nodes.png "ab tests 2")
 ![ab summary 2](img/ab-2-nodes-final.png "ab summary 2")
 
-It turned out that both cases were true (metrics were fixed by allowing proper ports). The final test we will do with a proper tool called [Locust](https://locust.io/). It's written in Python and lets tou define tests also with Python. Using below script I was able to properly test load on both nodes.
+It turned out that both cases were true (metrics were fixed by allowing proper ports). The final test we will do with a proper tool called [Locust](https://locust.io/). It's written in Python and lets you define tests also with Python. Using below script I was able to properly test load on both nodes.
 
 ```python
 from locust import HttpUser, TaskSet, task, between
@@ -251,7 +251,7 @@ Response time was very high, but still only 3% of failures. **Not bad as for fre
 
 ## Costs
 
-Below you can find cost results on every cloud after full month of intesive tests.  
+Below you can find cost results on every cloud after a full month of intensive tests.  
 OCI as the only one was **truly** free.
 
 ![OCI cost](img/oci-cost.png "OCI cost")
