@@ -189,7 +189,7 @@ Finally, we reach the last OCI error - 500. Of course they are out of capacity. 
 
 ![OCI - 500](img/oci-500.png "OCI - 500")
 
-I've deployed simple [NGINX](./nginx-deployment.yaml) and exposed it via [Load Balancer](./nginx-svc.yaml). I've spined up another free AWS instance from which I will test the load. For a start I've triggered two `curl` commands in the background to send few requests per second to the master and worker webservers exposed on NodePorts. Below you can see that all requests passed - not bad for a free cluster.
+I've deployed simple [NGINX](./nginx-deployment.yaml) and exposed it via [Load Balancer](./nginx-svc.yaml). I've spun up another free AWS instance from which I will test the load. For a start I've triggered two `curl` commands in the background to send few requests per second to the master and worker webservers exposed on NodePorts. Below you can see that all requests passed - not bad for a free cluster.
 
 ![2 NGINX simple test](img/2-nginx-results.png "2 NGINX simple test")
 
